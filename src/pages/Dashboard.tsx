@@ -1,4 +1,4 @@
-import { BookOpen, Pen, Mic, Brain } from "lucide-react";
+import { BookOpen, Pen, Mic, Brain, FlaskConical } from "lucide-react";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
@@ -11,6 +11,7 @@ const stats = [
 ];
 
 const modules = [
+  { icon: FlaskConical, title: "Grammar Test", desc: "MCQ, fill-in-blank & more", bg: "bg-feature-purple", to: "/grammar" },
   { icon: BookOpen, title: "Reading Practice", desc: "Improve comprehension skills", bg: "bg-feature-blue", to: "/practice/reading" },
   { icon: Pen, title: "Writing Practice", desc: "Express yourself in writing", bg: "bg-accent", to: "/practice/writing" },
   { icon: Mic, title: "Speaking Practice", desc: "Practice pronunciation", bg: "bg-feature-pink", to: "/practice/speaking" },
