@@ -34,7 +34,10 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Navbar */}
       <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
-        <h1 className="text-xl font-bold font-display gradient-text">EnglishMaster</h1>
+        <div className="flex items-center gap-2">
+          <img src="/favicon.png" alt="EngliLearn" className="h-10 w-auto object-contain" />
+          <h1 className="text-xl font-bold font-display gradient-text">EngliLearn</h1>
+        </div>
         <div className="flex gap-3">
           <Link
             to="/login"
@@ -53,10 +56,18 @@ const Index = () => {
 
       {/* Hero */}
       <section className="text-center py-20 px-6 max-w-4xl mx-auto">
+        <motion.img
+          src="/favicon.png"
+          alt="EngliLearn"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="h-44 md:h-56 w-auto object-contain mx-auto mb-8 drop-shadow-lg"
+        />
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.6, delay: 0.15 }}
           className="text-5xl md:text-6xl font-extrabold font-display gradient-text mb-6 leading-tight"
         >
           Start Your Journey With Us

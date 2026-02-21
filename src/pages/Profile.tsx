@@ -1,118 +1,190 @@
-import AppHeader from "@/components/AppHeader";
-import BottomNav from "@/components/BottomNav";
+import { useEffect, useState } from "react";
+import AppLayout from "@/components/AppLayout";
+import { useAuth } from "@/contexts/AuthContext";
 import { Progress } from "@/components/ui/progress";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-
-const weeklyData = [
-  { day: "Mon", reading: 45, writing: 30, speaking: 40 },
-  { day: "Tue", reading: 60, writing: 50, speaking: 35 },
-  { day: "Wed", reading: 40, writing: 40, speaking: 50 },
-  { day: "Thu", reading: 70, writing: 60, speaking: 45 },
-  { day: "Fri", reading: 80, writing: 70, speaking: 60 },
-  { day: "Sat", reading: 65, writing: 55, speaking: 50 },
-  { day: "Sun", reading: 70, writing: 55, speaking: 60 },
-];
-
-const scoreData = [
-  { week: "Week 1", score: 45 },
-  { week: "Week 2", score: 62 },
-  { week: "Week 3", score: 76 },
-  { week: "Week 4", score: 85 },
-];
-
-const todayReport = [
-  { label: "Reading Practice", value: 80, count: "2 exercises completed", color: "bg-feature-blue" },
-  { label: "Writing Practice", value: 50, count: "1 exercise completed", color: "bg-accent" },
-  { label: "Speaking Practice", value: 60, count: "3 phrases practiced", color: "bg-feature-pink" },
-  { label: "Quiz Challenges", value: 100, count: "1 quiz completed", color: "bg-feature-green" },
-];
-
-const stats = [
-  { icon: "📅", label: "Days Active", value: "23", change: "+3 this week" },
-  { icon: "✅", label: "Exercises Done", value: "147", change: "+15 this week" },
-  { icon: "📈", label: "Average Score", value: "85%", change: "+5% improvement" },
-  { icon: "🏅", label: "Badges Earned", value: "12", change: "3 more to unlock" },
-];
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { getUserProgress, getUserExerciseStats } from "@/lib/progressService";
+import { updateUserProfile } from "@/lib/progressService";
+import { useToast } from "@/hooks/use-toast";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Pen, Save } from "lucide-react";
 
 const Profile = () => {
-  return (
-    <div className="min-h-screen bg-background pb-20">
-      <AppHeader title="Profile" />
+  const { user, profile, refreshProfile } = useAuth();
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(profile?.name || "");
+  const [age, setAge] = useState(String(profile?.age || ""));
+  const [institution, setInstitution] = useState(profile?.institution || "");
+  const [saving, setSaving] = useState(false);
+  const [stats, setStats] = useState({ totalExercises: 0, avgScore: 0, moduleBreakdown: {} as Record<string, number> });
+  const [exercises, setExercises] = useState<any[]>([]);
 
+  useEffect(() => {
+    if (user) {
+      getUserExerciseStats(user.uid).then(setStats).catch(console.error);
+      getUserProgress(user.uid).then((ex) => setExercises(ex.slice(0, 20))).catch(console.error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    setName(profile?.name || "");
+    setAge(String(profile?.age || ""));
+    setInstitution(profile?.institution || "");
+  }, [profile]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      await updateUserProfile(user.uid, {
+        name,
+        age: parseInt(age) || 0,
+        institution,
+      });
+      await refreshProfile();
+      setEditing(false);
+      toast({ title: "Profile updated", description: "Your changes have been saved." });
+    } catch {
+      toast({ title: "Error", description: "Failed to save changes", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const chartData = Object.entries(stats.moduleBreakdown).map(([module, count]) => ({
+    module: module.charAt(0).toUpperCase() + module.slice(1),
+    exercises: count,
+  }));
+
+  return (
+    <AppLayout title="Profile">
       <div className="px-5 py-6 max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold font-display mb-1">Progress Tracking</h2>
-        <p className="text-muted-foreground text-sm mb-6">Monitor your learning journey with detailed analytics</p>
+        <h2 className="text-2xl font-bold font-display mb-1">Your Profile</h2>
+        <p className="text-muted-foreground text-sm mb-6">View and edit your profile information</p>
+
+        {/* Profile Card */}
+        <div className="stat-card mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold">
+                {(profile?.name?.charAt(0) || "U").toUpperCase()}
+              </div>
+              <div>
+                {editing ? (
+                  <Input value={name} onChange={(e) => setName(e.target.value)} className="mb-1 h-8 text-sm" />
+                ) : (
+                  <h3 className="text-lg font-bold font-display">{profile?.name || "User"}</h3>
+                )}
+                <p className="text-sm text-muted-foreground capitalize">{profile?.level} • {profile?.email}</p>
+              </div>
+            </div>
+            {!editing ? (
+              <Button onClick={() => setEditing(true)} variant="outline" size="sm">
+                <Pen className="w-3 h-3 mr-1" /> Edit
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button onClick={() => setEditing(false)} variant="outline" size="sm">Cancel</Button>
+                <Button onClick={handleSave} size="sm" className="gradient-button" disabled={saving}>
+                  <Save className="w-3 h-3 mr-1" /> {saving ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {editing && (
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div>
+                <Label className="text-xs">Age</Label>
+                <Input value={age} onChange={(e) => setAge(e.target.value)} type="number" className="mt-1 h-8 text-sm" />
+              </div>
+              <div>
+                <Label className="text-xs">Institution</Label>
+                <Input value={institution} onChange={(e) => setInstitution(e.target.value)} className="mt-1 h-8 text-sm" />
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          {stats.map((s) => (
-            <div key={s.label} className="stat-card">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm">{s.icon}</span>
-                <span className="text-xs text-muted-foreground">{s.label}</span>
-              </div>
-              <p className="text-2xl font-bold font-display">{s.value}</p>
-              <p className="text-xs text-feature-green mt-1">{s.change}</p>
+          <div className="stat-card">
+            <p className="text-2xl font-bold font-display">{profile?.xp || 0}</p>
+            <p className="text-xs text-muted-foreground mt-1">Total XP</p>
+          </div>
+          <div className="stat-card">
+            <p className="text-2xl font-bold font-display">{profile?.streak || 0}</p>
+            <p className="text-xs text-muted-foreground mt-1">Day Streak 🔥</p>
+          </div>
+          <div className="stat-card">
+            <p className="text-2xl font-bold font-display">{stats.totalExercises}</p>
+            <p className="text-xs text-muted-foreground mt-1">Exercises Done</p>
+          </div>
+          <div className="stat-card">
+            <p className="text-2xl font-bold font-display">{stats.avgScore}%</p>
+            <p className="text-xs text-muted-foreground mt-1">Average Score</p>
+          </div>
+        </div>
+
+        {/* Badges */}
+        {profile?.badges && profile.badges.length > 0 && (
+          <div className="stat-card mb-6">
+            <h3 className="text-sm font-bold font-display mb-3">Badges Earned</h3>
+            <div className="flex flex-wrap gap-2">
+              {profile.badges.map((badge) => (
+                <span key={badge} className="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                  🏅 {badge}
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
-
-        {/* Weekly Activity Chart */}
-        <div className="stat-card mb-6">
-          <h3 className="text-sm font-bold font-display mb-1">Weekly Activity</h3>
-          <p className="text-xs text-muted-foreground mb-4">Minutes spent on each activity this week</p>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(225,20%,88%)" />
-                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="reading" fill="hsl(217,91%,60%)" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="writing" fill="hsl(270,70%,55%)" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="speaking" fill="hsl(152,69%,45%)" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
           </div>
-        </div>
+        )}
 
-        {/* Score Trend */}
-        <div className="stat-card mb-6">
-          <h3 className="text-sm font-bold font-display mb-1">Score Improvement</h3>
-          <p className="text-xs text-muted-foreground mb-4">Your average score over the past month</p>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={scoreData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(225,20%,88%)" />
-                <XAxis dataKey="week" tick={{ fontSize: 12 }} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="score" stroke="hsl(270,70%,55%)" strokeWidth={2} dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
+        {/* Module Breakdown Chart */}
+        {chartData.length > 0 && (
+          <div className="stat-card mb-6">
+            <h3 className="text-sm font-bold font-display mb-1">Module Activity</h3>
+            <p className="text-xs text-muted-foreground mb-4">Exercises completed per module</p>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(225,20%,88%)" />
+                  <XAxis dataKey="module" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="exercises" fill="hsl(234, 85%, 55%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Today's Report */}
-        <div className="stat-card">
-          <h3 className="text-sm font-bold font-display mb-1">Today's Report</h3>
-          <p className="text-xs text-muted-foreground mb-4">Your activity for 2/21/2026</p>
-          <div className="space-y-4">
-            {todayReport.map((r) => (
-              <div key={r.label}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="font-medium">{r.label}</span>
-                  <span className="text-muted-foreground">{r.count}</span>
+        {/* Recent Activity */}
+        {exercises.length > 0 && (
+          <div className="stat-card">
+            <h3 className="text-sm font-bold font-display mb-3">Recent Activity</h3>
+            <div className="space-y-2">
+              {exercises.map((ex, i) => (
+                <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                  <div>
+                    <p className="text-sm font-medium capitalize">{ex.module}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {ex.completedAt?.toDate?.()?.toLocaleDateString() || "Recently"}
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold text-primary">
+                    {ex.score}/{ex.totalQuestions}
+                  </span>
                 </div>
-                <Progress value={r.value} className="h-2.5" />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
-
-      <BottomNav />
-    </div>
+    </AppLayout>
   );
 };
 

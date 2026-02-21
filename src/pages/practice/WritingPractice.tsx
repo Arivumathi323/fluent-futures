@@ -1,77 +1,116 @@
 import { useState } from "react";
-import { ArrowLeft, Pen, CheckCircle2, XCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, Pen, CheckCircle2, XCircle, Sparkles, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import AppHeader from "@/components/AppHeader";
-import BottomNav from "@/components/BottomNav";
-
-type ExerciseType = "formation" | "correction" | "prompt";
-
-interface Exercise {
-  id: number;
-  type: ExerciseType;
-  instruction: string;
-  hint?: string;
-  answer?: string;
-}
-
-const exercises: Exercise[] = [
-  { id: 1, type: "formation", instruction: "Form a sentence using: always / she / early / arrives", hint: "Subject + adverb + verb", answer: "She always arrives early." },
-  { id: 2, type: "correction", instruction: "Correct this sentence: \"He goed to the store yesterday.\"", answer: "He went to the store yesterday." },
-  { id: 3, type: "formation", instruction: "Form a sentence using: have / I / finished / homework / my", hint: "Present perfect tense", answer: "I have finished my homework." },
-  { id: 4, type: "correction", instruction: "Correct this sentence: \"Their going to the park tommorow.\"", answer: "They're going to the park tomorrow." },
-  { id: 5, type: "prompt", instruction: "Write 2-3 sentences about your favorite hobby. Use at least one present continuous tense." },
-];
+import AppLayout from "@/components/AppLayout";
+import { useAuth } from "@/contexts/AuthContext";
+import { generateWritingExercises, getWritingFeedback, WritingExercise } from "@/lib/gemini";
+import { saveExerciseResult } from "@/lib/progressService";
 
 const WritingPractice = () => {
+  const { user } = useAuth();
+  const [exercises, setExercises] = useState<WritingExercise[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [userInput, setUserInput] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState("");
+  const [error, setError] = useState("");
+
+  const loadExercises = async () => {
+    setLoading(true);
+    setError("");
+    setFinished(false);
+    setScore(0);
+    setCurrentIdx(0);
+    setExercises([]);
+    try {
+      const ex = await generateWritingExercises(5);
+      setExercises(ex);
+    } catch (err: any) {
+      setError(err.message || "Failed to generate exercises");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const exercise = exercises[currentIdx];
-  const isCorrect = submitted && exercise.answer && userInput.trim().toLowerCase() === exercise.answer.toLowerCase();
+  const isCorrect = submitted && exercise?.answer && userInput.trim().toLowerCase() === exercise.answer.toLowerCase();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!userInput.trim()) return;
     setSubmitted(true);
     if (exercise.answer && userInput.trim().toLowerCase() === exercise.answer.toLowerCase()) {
       setScore((s) => s + 1);
+    }
+    // Get AI feedback for prompts
+    if (exercise.type === "prompt") {
+      setFeedbackLoading(true);
+      try {
+        const feedback = await getWritingFeedback(userInput);
+        setAiFeedback(feedback);
+      } catch {
+        setAiFeedback("AI feedback unavailable.");
+      } finally {
+        setFeedbackLoading(false);
+      }
     }
   };
 
   const next = () => {
     setSubmitted(false);
     setUserInput("");
+    setAiFeedback("");
     if (currentIdx + 1 < exercises.length) {
       setCurrentIdx((c) => c + 1);
     } else {
       setFinished(true);
+      if (user) {
+        saveExerciseResult(user.uid, "writing", score, exercises.filter((e) => e.answer).length).catch(console.error);
+      }
     }
   };
 
-  const reset = () => {
-    setCurrentIdx(0);
-    setUserInput("");
-    setSubmitted(false);
-    setScore(0);
-    setFinished(false);
-  };
-
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <AppHeader title="Writing Practice" />
+    <AppLayout title="Writing Practice">
       <div className="px-5 py-6 max-w-2xl mx-auto">
         <Link to="/dashboard" className="inline-flex items-center gap-1 text-sm text-muted-foreground mb-6 hover:text-foreground">
           <ArrowLeft className="w-4 h-4" /> Back
         </Link>
 
-        {!finished ? (
+        {/* Start Screen */}
+        {exercises.length === 0 && !loading && !error && (
+          <Card className="text-center p-8">
+            <Pen className="w-14 h-14 text-accent mx-auto mb-4" />
+            <h2 className="text-2xl font-bold font-display mb-2">Writing Practice</h2>
+            <p className="text-muted-foreground text-sm mb-6">AI-generated exercises with real-time feedback</p>
+            <Button onClick={loadExercises} className="gradient-button">Start Practice</Button>
+          </Card>
+        )}
+
+        {loading && (
+          <Card className="text-center p-8">
+            <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-sm text-muted-foreground">Generating writing exercises...</p>
+          </Card>
+        )}
+
+        {error && (
+          <Card className="text-center p-8">
+            <p className="text-destructive mb-4">{error}</p>
+            <Button onClick={loadExercises}>Try Again</Button>
+          </Card>
+        )}
+
+        {/* Exercise */}
+        {!loading && !error && exercises.length > 0 && !finished && exercise && (
           <>
             <div className="flex items-center justify-between mb-4">
               <span className="flex items-center gap-2 text-sm font-semibold">
@@ -89,26 +128,13 @@ const WritingPractice = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 {exercise.type === "prompt" ? (
-                  <Textarea
-                    value={userInput}
-                    onChange={(e) => setUserInput(e.target.value)}
-                    placeholder="Write your answer here..."
-                    rows={4}
-                    disabled={submitted}
-                  />
+                  <Textarea value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder="Write your answer here..." rows={4} disabled={submitted} />
                 ) : (
-                  <Input
-                    value={userInput}
-                    onChange={(e) => setUserInput(e.target.value)}
-                    placeholder="Type your answer..."
-                    disabled={submitted}
-                  />
+                  <Input value={userInput} onChange={(e) => setUserInput(e.target.value)} placeholder="Type your answer..." disabled={submitted} />
                 )}
 
                 {!submitted && (
-                  <Button onClick={handleSubmit} className="gradient-button w-full" disabled={!userInput.trim()}>
-                    Submit
-                  </Button>
+                  <Button onClick={handleSubmit} className="gradient-button w-full" disabled={!userInput.trim()}>Submit</Button>
                 )}
 
                 {submitted && exercise.answer && (
@@ -127,11 +153,18 @@ const WritingPractice = () => {
                       <Sparkles className="w-5 h-5 text-accent" />
                       <span className="font-semibold text-sm">AI Feedback</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">AI grammar analysis will be available soon. Your writing has been recorded for review.</p>
+                    {feedbackLoading ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm text-muted-foreground">Analyzing your writing...</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiFeedback}</p>
+                    )}
                   </div>
                 )}
 
-                {submitted && (
+                {submitted && !feedbackLoading && (
                   <Button onClick={next} className="gradient-button w-full">
                     {currentIdx + 1 < exercises.length ? "Next Exercise" : "See Results"}
                   </Button>
@@ -139,18 +172,23 @@ const WritingPractice = () => {
               </CardContent>
             </Card>
           </>
-        ) : (
+        )}
+
+        {/* Results */}
+        {finished && (
           <Card className="text-center p-8">
             <Pen className="w-14 h-14 text-accent mx-auto mb-4" />
             <h2 className="text-2xl font-bold font-display mb-1">Practice Complete!</h2>
             <p className="text-muted-foreground text-sm mb-2">{score} correct out of {exercises.filter((e) => e.answer).length} graded exercises</p>
-            <p className="text-xs text-muted-foreground mb-6">Free writing exercises are reviewed separately</p>
-            <Button onClick={reset} className="gradient-button">Try Again</Button>
+            <p className="text-xs text-muted-foreground mb-6">Free writing exercises received AI feedback</p>
+            <div className="flex gap-3 justify-center">
+              <Button onClick={() => { setExercises([]); setError(""); }} variant="outline">Try Again</Button>
+              <Link to="/dashboard"><Button className="gradient-button">Dashboard</Button></Link>
+            </div>
           </Card>
         )}
       </div>
-      <BottomNav />
-    </div>
+    </AppLayout>
   );
 };
 
