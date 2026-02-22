@@ -312,28 +312,29 @@ export async function getModuleScores(userId: string): Promise<ModuleScores> {
     };
 }
 
-export async function requestCertification(userId: string, userName: string, userEmail: string, moduleScores: ModuleScores, level: string) {
-    const existing = await getStudentCertification(userId);
-    if (existing && existing.status === "pending") {
-        throw new Error("You already have a pending certification request.");
-    }
+export async function issueCertificate(
+    studentId: string,
+    studentName: string,
+    studentEmail: string,
+    level: string,
+    pdfFile: File,
+    adminId: string
+) {
+    // Upload PDF to Firebase Storage
+    const fileName = `certificates/${studentId}_${Date.now()}.pdf`;
+    const storageRef = ref(storage, fileName);
+    await uploadBytes(storageRef, pdfFile);
+    const pdfUrl = await getDownloadURL(storageRef);
+
+    // Save record in Firestore
     await addDoc(collection(db, "certifications"), {
-        studentId: userId,
-        studentName: userName,
-        studentEmail: userEmail,
+        studentId,
+        studentName,
+        studentEmail,
         level,
-        modules: {
-            grammar: moduleScores.grammar,
-            reading: moduleScores.reading,
-            writing: moduleScores.writing,
-            speaking: moduleScores.speaking,
-            quiz: moduleScores.quiz,
-        },
-        finalScore: moduleScores.overall,
-        status: "pending",
-        requestedAt: serverTimestamp(),
-        reviewedAt: null,
-        reviewedBy: null,
+        pdfUrl,
+        issuedBy: adminId,
+        issuedAt: serverTimestamp(),
     });
 }
 
@@ -341,7 +342,7 @@ export async function getStudentCertification(userId: string) {
     const q = query(
         collection(db, "certifications"),
         where("studentId", "==", userId),
-        orderBy("requestedAt", "desc"),
+        orderBy("issuedAt", "desc"),
         limit(1)
     );
     const snap = await getDocs(q);
@@ -350,18 +351,24 @@ export async function getStudentCertification(userId: string) {
     return { id: d.id, ...d.data() } as any;
 }
 
-export async function getCertificationRequests() {
-    const q = query(collection(db, "certifications"), orderBy("requestedAt", "desc"));
+export async function getStudentCertifications(userId: string) {
+    const q = query(
+        collection(db, "certifications"),
+        where("studentId", "==", userId),
+        orderBy("issuedAt", "desc")
+    );
     const snap = await getDocs(q);
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-export async function updateCertificationStatus(certId: string, status: "approved" | "rejected", adminId: string) {
-    await updateDoc(doc(db, "certifications", certId), {
-        status,
-        reviewedAt: serverTimestamp(),
-        reviewedBy: adminId,
-    });
+export async function getCertificationRequests() {
+    const q = query(collection(db, "certifications"), orderBy("issuedAt", "desc"));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function deleteCertificate(certId: string) {
+    await deleteDoc(doc(db, "certifications", certId));
 }
 
 // ---------- Telegram Integration ----------

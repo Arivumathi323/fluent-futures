@@ -20,7 +20,7 @@ import {
     Loader2,
     X,
     Video,
-    Award,
+    Upload,
 } from "lucide-react";
 import {
     getAllUsers,
@@ -39,7 +39,8 @@ import {
     getMediaSessions,
     deleteMediaSession,
     getCertificationRequests,
-    updateCertificationStatus,
+    issueCertificate,
+    deleteCertificate,
 } from "@/lib/progressService";
 import type { MediaQuestion } from "@/lib/progressService";
 
@@ -302,12 +303,16 @@ const AdminDashboard = () => {
         if (tab === "users") loadUsers();
         else if (tab === "resources") loadResources();
         else if (tab === "media") loadMediaSessions();
-        else if (tab === "certifications") loadCerts();
+        else if (tab === "certifications") { loadCerts(); loadUsers(); }
     }, [tab]);
 
     // === CERTIFICATIONS ===
     const [certs, setCerts] = useState<any[]>([]);
     const [certsLoading, setCertsLoading] = useState(false);
+    const [certStudentId, setCertStudentId] = useState("");
+    const [certLevel, setCertLevel] = useState("beginner");
+    const [certFile, setCertFile] = useState<File | null>(null);
+    const [certUploading, setCertUploading] = useState(false);
 
     const loadCerts = async () => {
         setCertsLoading(true);
@@ -321,13 +326,39 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleCertAction = async (certId: string, status: "approved" | "rejected") => {
+    const handleIssueCert = async () => {
+        if (!certStudentId || !certFile) return;
+        setCertUploading(true);
         try {
-            await updateCertificationStatus(certId, status, profile?.uid || "");
-            toast({ title: status === "approved" ? "Certificate Approved ✅" : "Certificate Rejected" });
+            const student = users.find((u) => u.uid === certStudentId);
+            if (!student) throw new Error("Student not found");
+            await issueCertificate(
+                student.uid,
+                student.name,
+                student.email,
+                certLevel,
+                certFile,
+                profile?.uid || ""
+            );
+            toast({ title: "Certificate Issued ✅", description: `Certificate sent to ${student.name}` });
+            setCertStudentId("");
+            setCertFile(null);
             loadCerts();
         } catch {
-            toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
+            toast({ title: "Error", description: "Failed to issue certificate", variant: "destructive" });
+        } finally {
+            setCertUploading(false);
+        }
+    };
+
+    const handleDeleteCert = async (certId: string) => {
+        if (!confirm("Delete this certificate?")) return;
+        try {
+            await deleteCertificate(certId);
+            toast({ title: "Certificate deleted" });
+            loadCerts();
+        } catch {
+            toast({ title: "Error", description: "Failed to delete", variant: "destructive" });
         }
     };
 
@@ -723,41 +754,82 @@ const AdminDashboard = () => {
                     {/* ====== CERTIFICATIONS TAB ====== */}
                     {tab === "certifications" && (
                         <>
-                            <h2 className="text-lg font-bold mb-4">Certification Requests</h2>
+                            {/* Issue Certificate Form */}
+                            <Card className="mb-6">
+                                <CardContent className="p-4">
+                                    <h3 className="text-sm font-bold mb-3">🎓 Issue Certificate</h3>
+                                    <div className="grid grid-cols-2 gap-3 mb-3">
+                                        <div>
+                                            <Label className="text-xs">Student *</Label>
+                                            <select
+                                                value={certStudentId}
+                                                onChange={(e) => setCertStudentId(e.target.value)}
+                                                className="mt-1 w-full h-8 rounded-md border bg-background px-2 text-sm"
+                                            >
+                                                <option value="">Select student...</option>
+                                                {users.map((u) => (
+                                                    <option key={u.uid} value={u.uid}>{u.name} ({u.email})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <Label className="text-xs">Level</Label>
+                                            <select
+                                                value={certLevel}
+                                                onChange={(e) => setCertLevel(e.target.value)}
+                                                className="mt-1 w-full h-8 rounded-md border bg-background px-2 text-sm"
+                                            >
+                                                <option value="beginner">Beginner</option>
+                                                <option value="intermediate">Intermediate</option>
+                                                <option value="advanced">Advanced</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="mb-3">
+                                        <Label className="text-xs">Certificate PDF *</Label>
+                                        <Input
+                                            type="file"
+                                            accept=".pdf"
+                                            onChange={(e) => setCertFile(e.target.files?.[0] || null)}
+                                            className="mt-1 h-8 text-xs"
+                                        />
+                                    </div>
+                                    <Button
+                                        onClick={handleIssueCert}
+                                        disabled={certUploading || !certStudentId || !certFile}
+                                        size="sm"
+                                        className="gradient-button"
+                                    >
+                                        {certUploading ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Uploading...</> : "📄 Issue Certificate"}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+
+                            {/* Issued Certificates List */}
+                            <h3 className="text-sm font-bold mb-3">Issued Certificates</h3>
                             {certsLoading ? (
                                 <div className="text-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" /></div>
                             ) : certs.length === 0 ? (
-                                <p className="text-center text-muted-foreground text-sm py-8">No certification requests yet.</p>
+                                <p className="text-center text-muted-foreground text-sm py-8">No certificates issued yet.</p>
                             ) : (
                                 <div className="space-y-3">
                                     {certs.map((c) => (
                                         <Card key={c.id}>
-                                            <CardContent className="p-4">
-                                                <div className="flex items-start justify-between">
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <h4 className="text-sm font-bold">{c.studentName}</h4>
-                                                            <span className={`text-xs font-bold px-2 py-0.5 rounded capitalize ${c.status === "approved" ? "bg-green-500/10 text-green-500"
-                                                                    : c.status === "rejected" ? "bg-red-500/10 text-red-500"
-                                                                        : "bg-amber-500/10 text-amber-500"
-                                                                }`}>{c.status}</span>
-                                                        </div>
-                                                        <p className="text-xs text-muted-foreground mb-2">{c.studentEmail} • Level: {c.level}</p>
-                                                        <div className="flex gap-3 text-xs">
-                                                            <span>Grammar: <strong>{c.modules?.grammar || 0}%</strong></span>
-                                                            <span>Reading: <strong>{c.modules?.reading || 0}%</strong></span>
-                                                            <span>Writing: <strong>{c.modules?.writing || 0}%</strong></span>
-                                                            <span>Speaking: <strong>{c.modules?.speaking || 0}%</strong></span>
-                                                            <span>Quiz: <strong>{c.modules?.quiz || 0}%</strong></span>
-                                                        </div>
-                                                        <p className="text-sm font-bold mt-1">Final Score: {c.finalScore}%</p>
+                                            <CardContent className="flex items-center justify-between p-4">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h4 className="text-sm font-bold">{c.studentName}</h4>
+                                                        <span className="text-xs font-bold px-2 py-0.5 rounded capitalize bg-green-500/10 text-green-500">Issued</span>
                                                     </div>
-                                                    {c.status === "pending" && (
-                                                        <div className="flex gap-2 shrink-0">
-                                                            <Button size="sm" variant="default" onClick={() => handleCertAction(c.id, "approved")}>✅ Approve</Button>
-                                                            <Button size="sm" variant="outline" className="text-destructive" onClick={() => handleCertAction(c.id, "rejected")}>❌ Reject</Button>
-                                                        </div>
-                                                    )}
+                                                    <p className="text-xs text-muted-foreground">Level: {c.level} • {c.studentEmail}</p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <a href={c.pdfUrl} target="_blank" rel="noopener noreferrer">
+                                                        <Button size="sm" variant="outline">📥 View PDF</Button>
+                                                    </a>
+                                                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteCert(c.id)}>
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
                                                 </div>
                                             </CardContent>
                                         </Card>
