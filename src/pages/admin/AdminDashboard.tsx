@@ -20,6 +20,7 @@ import {
     Loader2,
     X,
     Video,
+    Award,
 } from "lucide-react";
 import {
     getAllUsers,
@@ -37,10 +38,12 @@ import {
     addMediaSession,
     getMediaSessions,
     deleteMediaSession,
+    getCertificationRequests,
+    updateCertificationStatus,
 } from "@/lib/progressService";
 import type { MediaQuestion } from "@/lib/progressService";
 
-type Tab = "users" | "badges" | "resources" | "media";
+type Tab = "users" | "badges" | "resources" | "media" | "certifications";
 
 const AdminDashboard = () => {
     const { profile, logout } = useAuth();
@@ -299,7 +302,34 @@ const AdminDashboard = () => {
         if (tab === "users") loadUsers();
         else if (tab === "resources") loadResources();
         else if (tab === "media") loadMediaSessions();
+        else if (tab === "certifications") loadCerts();
     }, [tab]);
+
+    // === CERTIFICATIONS ===
+    const [certs, setCerts] = useState<any[]>([]);
+    const [certsLoading, setCertsLoading] = useState(false);
+
+    const loadCerts = async () => {
+        setCertsLoading(true);
+        try {
+            const data = await getCertificationRequests();
+            setCerts(data);
+        } catch {
+            toast({ title: "Error", description: "Failed to load certifications", variant: "destructive" });
+        } finally {
+            setCertsLoading(false);
+        }
+    };
+
+    const handleCertAction = async (certId: string, status: "approved" | "rejected") => {
+        try {
+            await updateCertificationStatus(certId, status, profile?.uid || "");
+            toast({ title: status === "approved" ? "Certificate Approved ✅" : "Certificate Rejected" });
+            loadCerts();
+        } catch {
+            toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
+        }
+    };
 
     const handleLogout = async () => {
         await logout();
@@ -311,6 +341,7 @@ const AdminDashboard = () => {
         { key: "badges", icon: Trophy, label: "Badges" },
         { key: "resources", icon: FolderOpen, label: "Resources" },
         { key: "media", icon: Video, label: "Media Sessions" },
+        { key: "certifications", icon: Award, label: "Certifications" },
     ];
 
     return (
@@ -681,6 +712,53 @@ const AdminDashboard = () => {
                                                 <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteMedia(s.id)}>
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* ====== CERTIFICATIONS TAB ====== */}
+                    {tab === "certifications" && (
+                        <>
+                            <h2 className="text-lg font-bold mb-4">Certification Requests</h2>
+                            {certsLoading ? (
+                                <div className="text-center py-8"><Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" /></div>
+                            ) : certs.length === 0 ? (
+                                <p className="text-center text-muted-foreground text-sm py-8">No certification requests yet.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {certs.map((c) => (
+                                        <Card key={c.id}>
+                                            <CardContent className="p-4">
+                                                <div className="flex items-start justify-between">
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <h4 className="text-sm font-bold">{c.studentName}</h4>
+                                                            <span className={`text-xs font-bold px-2 py-0.5 rounded capitalize ${c.status === "approved" ? "bg-green-500/10 text-green-500"
+                                                                    : c.status === "rejected" ? "bg-red-500/10 text-red-500"
+                                                                        : "bg-amber-500/10 text-amber-500"
+                                                                }`}>{c.status}</span>
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground mb-2">{c.studentEmail} • Level: {c.level}</p>
+                                                        <div className="flex gap-3 text-xs">
+                                                            <span>Grammar: <strong>{c.modules?.grammar || 0}%</strong></span>
+                                                            <span>Reading: <strong>{c.modules?.reading || 0}%</strong></span>
+                                                            <span>Writing: <strong>{c.modules?.writing || 0}%</strong></span>
+                                                            <span>Speaking: <strong>{c.modules?.speaking || 0}%</strong></span>
+                                                            <span>Quiz: <strong>{c.modules?.quiz || 0}%</strong></span>
+                                                        </div>
+                                                        <p className="text-sm font-bold mt-1">Final Score: {c.finalScore}%</p>
+                                                    </div>
+                                                    {c.status === "pending" && (
+                                                        <div className="flex gap-2 shrink-0">
+                                                            <Button size="sm" variant="default" onClick={() => handleCertAction(c.id, "approved")}>✅ Approve</Button>
+                                                            <Button size="sm" variant="outline" className="text-destructive" onClick={() => handleCertAction(c.id, "rejected")}>❌ Reject</Button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </CardContent>
                                         </Card>
                                     ))}

@@ -265,3 +265,119 @@ export async function getMediaSessionsByType(type: "audio" | "video") {
 export async function deleteMediaSession(sessionId: string) {
     await deleteDoc(doc(db, "mediaSessions", sessionId));
 }
+
+// ---------- Certification System ----------
+
+export const CERT_PASS_MARK = 70;
+
+export interface ModuleScores {
+    grammar: number;
+    reading: number;
+    writing: number;
+    speaking: number;
+    quiz: number;
+    overall: number;
+    totalExercises: number;
+}
+
+export async function getModuleScores(userId: string): Promise<ModuleScores> {
+    const exercises = await getUserProgress(userId);
+    const modules: Record<string, { score: number; total: number }> = {};
+
+    exercises.forEach((e: any) => {
+        const mod = (e.module || "").toLowerCase().replace("media-", "");
+        if (!modules[mod]) modules[mod] = { score: 0, total: 0 };
+        modules[mod].score += (e.score || 0);
+        modules[mod].total += (e.totalQuestions || 0);
+    });
+
+    const pct = (key: string) => {
+        const m = modules[key];
+        return m && m.total > 0 ? Math.round((m.score / m.total) * 100) : 0;
+    };
+
+    const keys = ["grammar", "reading", "writing", "speaking", "quiz"];
+    const scores = keys.map(pct);
+    const attempted = scores.filter((s) => s > 0);
+    const overall = attempted.length > 0 ? Math.round(attempted.reduce((a, b) => a + b, 0) / attempted.length) : 0;
+
+    return {
+        grammar: pct("grammar"),
+        reading: pct("reading"),
+        writing: pct("writing"),
+        speaking: pct("speaking"),
+        quiz: pct("quiz"),
+        overall,
+        totalExercises: exercises.length,
+    };
+}
+
+export async function requestCertification(userId: string, userName: string, userEmail: string, moduleScores: ModuleScores, level: string) {
+    const existing = await getStudentCertification(userId);
+    if (existing && existing.status === "pending") {
+        throw new Error("You already have a pending certification request.");
+    }
+    await addDoc(collection(db, "certifications"), {
+        studentId: userId,
+        studentName: userName,
+        studentEmail: userEmail,
+        level,
+        modules: {
+            grammar: moduleScores.grammar,
+            reading: moduleScores.reading,
+            writing: moduleScores.writing,
+            speaking: moduleScores.speaking,
+            quiz: moduleScores.quiz,
+        },
+        finalScore: moduleScores.overall,
+        status: "pending",
+        requestedAt: serverTimestamp(),
+        reviewedAt: null,
+        reviewedBy: null,
+    });
+}
+
+export async function getStudentCertification(userId: string) {
+    const q = query(
+        collection(db, "certifications"),
+        where("studentId", "==", userId),
+        orderBy("requestedAt", "desc"),
+        limit(1)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { id: d.id, ...d.data() } as any;
+}
+
+export async function getCertificationRequests() {
+    const q = query(collection(db, "certifications"), orderBy("requestedAt", "desc"));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function updateCertificationStatus(certId: string, status: "approved" | "rejected", adminId: string) {
+    await updateDoc(doc(db, "certifications", certId), {
+        status,
+        reviewedAt: serverTimestamp(),
+        reviewedBy: adminId,
+    });
+}
+
+// ---------- Telegram Integration ----------
+
+export async function generateTelegramLinkCode(userId: string): Promise<string> {
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    await updateDoc(doc(db, "users", userId), {
+        telegramLinkCode: code,
+    });
+    return code;
+}
+
+export async function disconnectTelegram(userId: string) {
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
+        telegramChatId: null,
+        telegramLinkCode: null,
+    });
+}

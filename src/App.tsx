@@ -18,6 +18,7 @@ import SpeakingPractice from "./pages/practice/SpeakingPractice";
 import QuizChallenge from "./pages/practice/QuizChallenge";
 import MediaPractice from "./pages/practice/MediaPractice";
 import MediaSessionPlayer from "./pages/practice/MediaSessionPlayer";
+import Certification from "./pages/Certification";
 import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
 import Settings from "./pages/Settings";
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="/practice/quiz" element={<ProtectedRoute><QuizChallenge /></ProtectedRoute>} />
             <Route path="/practice/media" element={<ProtectedRoute><MediaPractice /></ProtectedRoute>} />
             <Route path="/practice/media/:sessionId" element={<ProtectedRoute><MediaSessionPlayer /></ProtectedRoute>} />
+            <Route path="/certification" element={<ProtectedRoute><Certification /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

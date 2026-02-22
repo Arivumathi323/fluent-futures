@@ -1,8 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
-import { BookOpen, Trophy, TrendingUp, HelpCircle } from "lucide-react";
+import { BookOpen, Trophy, TrendingUp, HelpCircle, Award } from "lucide-react";
 
 const navItems = [
   { to: "/dashboard", icon: BookOpen, label: "Home" },
+  { to: "/certification", icon: Award, label: "Certificate" },
   { to: "/leaderboard", icon: Trophy, label: "Leaderboard" },
   { to: "/profile", icon: TrendingUp, label: "Profile" },
 ];

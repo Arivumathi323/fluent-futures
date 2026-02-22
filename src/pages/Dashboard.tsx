@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Pen, Mic, Brain, FlaskConical, FolderOpen, Video } from "lucide-react";
+import { BookOpen, Pen, Mic, Brain, FlaskConical, FolderOpen, Video, Award } from "lucide-react";
 import { Link } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,7 @@ const modules = [
   { icon: Mic, title: "Speaking Practice", desc: "Practice pronunciation", bg: "bg-feature-pink", to: "/practice/speaking" },
   { icon: Brain, title: "Quiz Challenge", desc: "Test your knowledge", bg: "bg-feature-green", to: "/practice/quiz" },
   { icon: Video, title: "A/V Practice", desc: "Watch & listen, then answer", bg: "bg-blue-500", to: "/practice/media" },
+  { icon: Award, title: "Certification", desc: "Earn your certificate", bg: "bg-feature-pink", to: "/certification" },
   { icon: FolderOpen, title: "Resources", desc: "Learning materials", bg: "bg-feature-amber", to: "/resources" },
 ];
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,10 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { updatePassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { Moon, Sun, Lock, Bell, LogOut } from "lucide-react";
+import { Moon, Sun, Lock, Bell, LogOut, MessageCircle, Link2, Unlink } from "lucide-react";
+import { generateTelegramLinkCode, disconnectTelegram } from "@/lib/progressService";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const Settings = () => {
     const { profile, logout } = useAuth();
@@ -17,6 +20,20 @@ const Settings = () => {
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [changingPw, setChangingPw] = useState(false);
+    const [telegramConnected, setTelegramConnected] = useState(false);
+    const [telegramLinkCode, setTelegramLinkCode] = useState("");
+    const [loadingTelegram, setLoadingTelegram] = useState(false);
+
+    // Check Telegram status on load
+    useEffect(() => {
+        if (auth.currentUser) {
+            getDoc(doc(db, "users", auth.currentUser.uid)).then((snap) => {
+                if (snap.exists() && snap.data().telegramChatId) {
+                    setTelegramConnected(true);
+                }
+            });
+        }
+    }, []);
 
     const toggleDarkMode = () => {
         const next = !darkMode;
@@ -65,6 +82,31 @@ const Settings = () => {
             await logout();
         } catch {
             toast({ title: "Error", description: "Failed to log out", variant: "destructive" });
+        }
+    };
+
+    const handleConnectTelegram = async () => {
+        if (!auth.currentUser) return;
+        setLoadingTelegram(true);
+        try {
+            const code = await generateTelegramLinkCode(auth.currentUser.uid);
+            setTelegramLinkCode(code);
+        } catch {
+            toast({ title: "Error", description: "Failed to generate link", variant: "destructive" });
+        } finally {
+            setLoadingTelegram(false);
+        }
+    };
+
+    const handleDisconnectTelegram = async () => {
+        if (!auth.currentUser) return;
+        try {
+            await disconnectTelegram(auth.currentUser.uid);
+            setTelegramConnected(false);
+            setTelegramLinkCode("");
+            toast({ title: "Telegram disconnected" });
+        } catch {
+            toast({ title: "Error", description: "Failed to disconnect", variant: "destructive" });
         }
     };
 
@@ -126,6 +168,49 @@ const Settings = () => {
                             {changingPw ? "Updating..." : "Update Password"}
                         </Button>
                     </div>
+                </div>
+
+                {/* Telegram Integration */}
+                <div className="stat-card mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <MessageCircle className="w-4 h-4 text-blue-500" />
+                        <h3 className="text-sm font-bold font-display">Telegram Daily Tasks</h3>
+                    </div>
+                    {telegramConnected ? (
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-sm text-green-500">
+                                <Link2 className="w-4 h-4" />
+                                <span className="font-semibold">Connected ✅</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">You'll receive daily grammar, writing, and speaking tasks via Telegram.</p>
+                            <Button onClick={handleDisconnectTelegram} variant="outline" size="sm" className="text-destructive">
+                                <Unlink className="w-3 h-3 mr-1" /> Disconnect
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <p className="text-xs text-muted-foreground">Connect your Telegram to receive daily English practice tasks.</p>
+                            {telegramLinkCode ? (
+                                <div className="space-y-2">
+                                    <p className="text-xs">Click the button below to open our Telegram bot:</p>
+                                    <a
+                                        href={`https://t.me/english_ai_buddybot?start=${telegramLinkCode}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white">
+                                            <MessageCircle className="w-3 h-3 mr-1" /> Open Telegram Bot
+                                        </Button>
+                                    </a>
+                                    <p className="text-[10px] text-muted-foreground">Your link code: <strong>{telegramLinkCode}</strong></p>
+                                </div>
+                            ) : (
+                                <Button onClick={handleConnectTelegram} size="sm" className="gradient-button" disabled={loadingTelegram}>
+                                    {loadingTelegram ? "Generating..." : "🔗 Connect Telegram"}
+                                </Button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Logout */}

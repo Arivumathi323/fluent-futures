@@ -14,6 +14,7 @@ import {
     Shield,
     HelpCircle,
     Video,
+    Award,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -28,6 +29,7 @@ const navItems = [
     { to: "/profile", icon: TrendingUp, label: "Progress" },
     { to: "/resources", icon: FolderOpen, label: "Resources" },
     { to: "/leaderboard", icon: Trophy, label: "Leaderboard" },
+    { to: "/certification", icon: Award, label: "Certification" },
     { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
