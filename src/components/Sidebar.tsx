@@ -13,6 +13,7 @@ import {
     Trophy,
     Shield,
     HelpCircle,
+    Video,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -22,6 +23,7 @@ const navItems = [
     { to: "/practice/reading", icon: BookOpen, label: "Reading" },
     { to: "/practice/writing", icon: Pen, label: "Writing" },
     { to: "/practice/speaking", icon: Mic, label: "Speaking" },
+    { to: "/practice/media", icon: Video, label: "A/V Practice" },
     { to: "/practice/quiz", icon: Brain, label: "Quiz" },
     { to: "/profile", icon: TrendingUp, label: "Progress" },
     { to: "/resources", icon: FolderOpen, label: "Resources" },

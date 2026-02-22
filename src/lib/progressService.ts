@@ -220,3 +220,48 @@ export async function getUserExerciseStats(userId: string) {
 
     return { totalExercises, avgScore, moduleBreakdown };
 }
+
+// ---------- Media Sessions (Audio/Video Practice) ----------
+
+export interface MediaQuestion {
+    question: string;
+    options: string[];
+    correctAnswer: number;
+}
+
+export interface MediaSessionData {
+    title: string;
+    description: string;
+    type: "audio" | "video";
+    mediaUrl: string;
+    level: string;
+    questions: MediaQuestion[];
+    createdBy: string;
+}
+
+export async function addMediaSession(data: MediaSessionData) {
+    await addDoc(collection(db, "mediaSessions"), {
+        ...data,
+        createdAt: serverTimestamp(),
+    });
+}
+
+export async function getMediaSessions() {
+    const q = query(collection(db, "mediaSessions"), orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function getMediaSessionsByType(type: "audio" | "video") {
+    const q = query(
+        collection(db, "mediaSessions"),
+        where("type", "==", type),
+        orderBy("createdAt", "desc")
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function deleteMediaSession(sessionId: string) {
+    await deleteDoc(doc(db, "mediaSessions", sessionId));
+}
