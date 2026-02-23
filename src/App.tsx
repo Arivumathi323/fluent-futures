@@ -20,6 +20,7 @@ import MediaPractice from "./pages/practice/MediaPractice";
 import MediaSessionPlayer from "./pages/practice/MediaSessionPlayer";
 import ScenarioLearning from "./pages/practice/ScenarioLearning";
 import WeaknessAnalysis from "./pages/practice/WeaknessAnalysis";
+import MyReviews from "./pages/practice/MyReviews";
 import MonthlyReport from "./pages/MonthlyReport";
 import Certification from "./pages/Certification";
 import Profile from "./pages/Profile";
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/practice/media/:sessionId" element={<ProtectedRoute><MediaSessionPlayer /></ProtectedRoute>} />
             <Route path="/practice/scenario" element={<ProtectedRoute><ScenarioLearning /></ProtectedRoute>} />
             <Route path="/practice/weakness" element={<ProtectedRoute><WeaknessAnalysis /></ProtectedRoute>} />
+            <Route path="/practice/my-reviews" element={<ProtectedRoute><MyReviews /></ProtectedRoute>} />
             <Route path="/monthly-report" element={<ProtectedRoute><MonthlyReport /></ProtectedRoute>} />
             <Route path="/certification" element={<ProtectedRoute><Certification /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

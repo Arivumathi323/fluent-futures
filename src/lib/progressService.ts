@@ -42,6 +42,58 @@ export async function saveExerciseResult(
     await updateStreak(userId);
 }
 
+// === HUMAN REVIEW MODE ===
+
+export async function submitForReview(data: {
+    userId: string;
+    userName: string;
+    type: "writing" | "speaking";
+    content: string;
+    prompt: string;
+}) {
+    const reviewRef = collection(db, "reviewRequests");
+    await addDoc(reviewRef, {
+        ...data,
+        status: "pending",
+        submittedAt: serverTimestamp(),
+        feedback: "",
+        reviewedBy: "",
+        reviewedAt: null,
+    });
+}
+
+export async function getStudentReviews(userId: string) {
+    const q = query(
+        collection(db, "reviewRequests"),
+        where("userId", "==", userId)
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as any))
+        .sort((a, b) => (b.submittedAt?.toMillis() || 0) - (a.submittedAt?.toMillis() || 0));
+}
+
+export async function getPendingReviews() {
+    const q = query(
+        collection(db, "reviewRequests"),
+        where("status", "==", "pending")
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as any))
+        .sort((a, b) => (a.submittedAt?.toMillis() || 0) - (b.submittedAt?.toMillis() || 0));
+}
+
+export async function submitReviewFeedback(requestId: string, feedback: string, adminName: string) {
+    const docRef = doc(db, "reviewRequests", requestId);
+    await updateDoc(docRef, {
+        feedback,
+        status: "reviewed",
+        reviewedBy: adminName,
+        reviewedAt: serverTimestamp(),
+    });
+}
+
 export async function getUserProgress(userId: string) {
     const exercisesRef = collection(db, "users", userId, "exercises");
     const q = query(exercisesRef, orderBy("completedAt", "desc"));

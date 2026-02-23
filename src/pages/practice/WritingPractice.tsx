@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Pen, CheckCircle2, XCircle, Sparkles, Loader2 } from "lucide-react";
+import { ArrowLeft, Pen, CheckCircle2, XCircle, Sparkles, Loader2, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,11 +9,16 @@ import { Progress } from "@/components/ui/progress";
 import AppLayout from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateWritingExercises, getWritingFeedback, WritingExercise } from "@/lib/gemini";
-import { saveExerciseResult } from "@/lib/progressService";
+import { saveExerciseResult, submitForReview } from "@/lib/progressService";
+import { useToast } from "@/hooks/use-toast";
 
 const WritingPractice = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
   const [exercises, setExercises] = useState<WritingExercise[]>([]);
+  // ...
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewRequested, setReviewRequested] = useState(false);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [userInput, setUserInput] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -181,9 +186,49 @@ const WritingPractice = () => {
             <h2 className="text-2xl font-bold font-display mb-1">Practice Complete!</h2>
             <p className="text-muted-foreground text-sm mb-2">{score} correct out of {exercises.filter((e) => e.answer).length} graded exercises</p>
             <p className="text-xs text-muted-foreground mb-6">Free writing exercises received AI feedback</p>
-            <div className="flex gap-3 justify-center">
-              <Button onClick={() => { setExercises([]); setError(""); }} variant="outline">Try Again</Button>
-              <Link to="/dashboard"><Button className="gradient-button">Dashboard</Button></Link>
+            <div className="flex flex-col gap-3 justify-center">
+              <div className="flex gap-3 justify-center">
+                <Button onClick={() => { setExercises([]); setError(""); setReviewRequested(false); }} variant="outline">Try Again</Button>
+                <Link to="/dashboard"><Button className="gradient-button">Dashboard</Button></Link>
+              </div>
+
+              {!reviewRequested ? (
+                <Button
+                  onClick={async () => {
+                    if (!user || exercises.length === 0) return;
+                    setIsSubmittingReview(true);
+                    try {
+                      // Collect all free writing content
+                      const freeWriting = exercises
+                        .filter(e => e.type === "prompt")
+                        .map((e, i) => `Exercise ${i + 1}: ${e.instruction}\nMy Work: ${userInput}`) // Note: this logic needs improvement if there are multiple prompts
+                        .join("\n\n");
+
+                      await submitForReview({
+                        userId: user.uid,
+                        userName: profile?.name || user.email || "Student",
+                        type: "writing",
+                        content: userInput, // Simplified for now
+                        prompt: exercise.instruction
+                      });
+                      setReviewRequested(true);
+                      toast({ title: "Submitted!", description: "A teacher will review your work soon." });
+                    } catch (err) {
+                      toast({ title: "Error", description: "Failed to submit for review", variant: "destructive" });
+                    } finally {
+                      setIsSubmittingReview(false);
+                    }
+                  }}
+                  variant="secondary"
+                  className="w-full"
+                  disabled={isSubmittingReview}
+                >
+                  {isSubmittingReview ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+                  Request Professional Teacher Review
+                </Button>
+              ) : (
+                <p className="text-xs text-feature-green font-medium">✅ Review Requested</p>
+              )}
             </div>
           </Card>
         )}

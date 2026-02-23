@@ -8,7 +8,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getSpeakingFeedback } from "@/lib/gemini";
 import type { SpeakingFeedback, WordFeedback } from "@/lib/gemini";
 import { textToSpeech, playAudioBlob } from "@/lib/elevenlabs";
-import { saveExerciseResult } from "@/lib/progressService";
+import { saveExerciseResult, submitForReview } from "@/lib/progressService";
+import { useToast } from "@/hooks/use-toast";
+import { ShieldCheck } from "lucide-react";
 
 const prompts = [
   { id: 1, text: "Describe your daily routine in 3-4 sentences.", example: "I wake up at 7 AM every day. After breakfast, I go to school. In the evening, I study and play with my friends." },
@@ -19,9 +21,13 @@ const prompts = [
 ];
 
 const SpeakingPractice = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
   const [promptIdx, setPromptIdx] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
+  // ...
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewRequested, setReviewRequested] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
   const [error, setError] = useState("");
@@ -226,9 +232,43 @@ const SpeakingPractice = () => {
         )}
 
         {showFeedback && !feedbackLoading && (
-          <Button onClick={nextPrompt} className="gradient-button w-full shadow-lg h-12 text-base font-bold">
-            Continue to Next Exercise
-          </Button>
+          <div className="space-y-3">
+            <Button onClick={nextPrompt} className="gradient-button w-full shadow-lg h-12 text-base font-bold">
+              Continue to Next Exercise
+            </Button>
+
+            {!reviewRequested ? (
+              <Button
+                onClick={async () => {
+                  if (!user || !transcript) return;
+                  setIsSubmittingReview(true);
+                  try {
+                    await submitForReview({
+                      userId: user.uid,
+                      userName: user.displayName || user.email || "Student",
+                      type: "speaking",
+                      content: transcript,
+                      prompt: prompt.text
+                    });
+                    setReviewRequested(true);
+                    toast({ title: "Submitted!", description: "A teacher will review your pronunciation soon." });
+                  } catch (err) {
+                    toast({ title: "Error", description: "Failed to submit for review", variant: "destructive" });
+                  } finally {
+                    setIsSubmittingReview(false);
+                  }
+                }}
+                variant="outline"
+                className="w-full text-xs"
+                disabled={isSubmittingReview}
+              >
+                {isSubmittingReview ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+                Request Verified Teacher Feedback
+              </Button>
+            ) : (
+              <p className="text-center text-xs text-feature-green font-medium">✅ Review Requested</p>
+            )}
+          </div>
         )}
       </div>
     </AppLayout>
