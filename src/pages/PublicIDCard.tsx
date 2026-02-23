@@ -132,9 +132,9 @@ const PublicIDCard = () => {
                         <div className="w-full mt-10 pt-6 border-t border-dashed border-border flex flex-col items-center">
                             <div className="scale-[0.8] mb-2 grayscale opacity-80">
                                 <Barcode
-                                    value={profile.uid.slice(0, 12).toUpperCase()}
+                                    value={profile.uid}
                                     height={50}
-                                    width={1.5}
+                                    width={1.0}
                                     fontSize={12}
                                     background="transparent"
                                 />

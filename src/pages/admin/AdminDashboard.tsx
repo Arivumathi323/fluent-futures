@@ -612,9 +612,9 @@ const AdminDashboard = () => {
                                                                         <div className="mt-auto w-full pt-6 flex flex-col items-center relative">
                                                                             <div className="scale-[0.8] grayscale opacity-40 group-hover:opacity-100 transition-opacity mb-2">
                                                                                 <Barcode
-                                                                                    value={u.uid.slice(0, 12).toUpperCase()}
+                                                                                    value={u.uid}
                                                                                     height={35}
-                                                                                    width={1.6}
+                                                                                    width={1.0}
                                                                                     fontSize={10}
                                                                                     background="transparent"
                                                                                     displayValue={false}

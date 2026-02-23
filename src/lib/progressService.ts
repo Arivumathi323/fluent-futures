@@ -24,13 +24,15 @@ export async function saveExerciseResult(
     userId: string,
     module: string,
     score: number,
-    totalQuestions: number
+    totalQuestions: number,
+    mistakes: string[] = []
 ) {
     const exerciseRef = collection(db, "users", userId, "exercises");
     await addDoc(exerciseRef, {
         module,
         score,
         totalQuestions,
+        mistakes,
         completedAt: serverTimestamp(),
     });
 

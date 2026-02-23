@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Pen, Mic, Brain, FlaskConical, FolderOpen, Video, Award } from "lucide-react";
+import { BookOpen, Pen, Mic, Brain, FlaskConical, FolderOpen, Video, Award, Users, Target, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,9 @@ const modules = [
   { icon: BookOpen, title: "Reading Practice", desc: "Improve comprehension skills", bg: "bg-feature-blue", to: "/practice/reading" },
   { icon: Pen, title: "Writing Practice", desc: "Express yourself in writing", bg: "bg-accent", to: "/practice/writing" },
   { icon: Mic, title: "Speaking Practice", desc: "Practice pronunciation", bg: "bg-feature-pink", to: "/practice/speaking" },
+  { icon: Users, title: "Scenario Learning", desc: "AI Roleplay simulations", bg: "bg-indigo-500", to: "/practice/scenario" },
+  { icon: Target, title: "Weakness Analysis", desc: "AI-driven teaching engine", bg: "bg-red-500", to: "/practice/weakness" },
+  { icon: BarChart3, title: "Monthly Report", desc: "Your progress summary", bg: "bg-emerald-500", to: "/monthly-report" },
   { icon: Brain, title: "Quiz Challenge", desc: "Test your knowledge", bg: "bg-feature-green", to: "/practice/quiz" },
   { icon: Video, title: "A/V Practice", desc: "Watch & listen, then answer", bg: "bg-blue-500", to: "/practice/media" },
   { icon: Award, title: "Certification", desc: "Earn your certificate", bg: "bg-feature-pink", to: "/certification" },

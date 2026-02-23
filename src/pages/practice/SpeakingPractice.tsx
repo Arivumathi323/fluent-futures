@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback } from "react";
-import { ArrowLeft, Mic, MicOff, Volume2, Sparkles, Loader2 } from "lucide-react";
+import { ArrowLeft, Mic, MicOff, Volume2, Sparkles, Loader2, Info } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AppLayout from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSpeakingFeedback } from "@/lib/gemini";
+import type { SpeakingFeedback, WordFeedback } from "@/lib/gemini";
 import { textToSpeech, playAudioBlob } from "@/lib/elevenlabs";
 import { saveExerciseResult } from "@/lib/progressService";
 
@@ -24,7 +25,7 @@ const SpeakingPractice = () => {
   const [transcript, setTranscript] = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
   const [error, setError] = useState("");
-  const [aiFeedback, setAiFeedback] = useState("");
+  const [feedbackData, setFeedbackData] = useState<SpeakingFeedback | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [ttsLoading, setTtsLoading] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -50,7 +51,7 @@ const SpeakingPractice = () => {
     setError("");
     setTranscript("");
     setShowFeedback(false);
-    setAiFeedback("");
+    setFeedbackData(null);
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -94,8 +95,8 @@ const SpeakingPractice = () => {
       // Get AI feedback
       setFeedbackLoading(true);
       getSpeakingFeedback(transcript, prompt.text)
-        .then((fb) => setAiFeedback(fb))
-        .catch(() => setAiFeedback("AI feedback unavailable."))
+        .then((data) => setFeedbackData(data))
+        .catch(() => setFeedbackData(null))
         .finally(() => setFeedbackLoading(false));
       // Save result
       if (user) {
@@ -109,7 +110,7 @@ const SpeakingPractice = () => {
     setTranscript("");
     setShowFeedback(false);
     setError("");
-    setAiFeedback("");
+    setFeedbackData(null);
   };
 
   return (
@@ -148,8 +149,8 @@ const SpeakingPractice = () => {
           <button
             onClick={isRecording ? stopRecording : startRecording}
             className={`w-24 h-24 rounded-full flex items-center justify-center transition-all ${isRecording
-                ? "bg-destructive text-destructive-foreground animate-pulse shadow-lg"
-                : "gradient-button shadow-md"
+              ? "bg-destructive text-destructive-foreground animate-pulse shadow-lg"
+              : "gradient-button shadow-md"
               }`}
           >
             {isRecording ? <MicOff className="w-10 h-10" /> : <Mic className="w-10 h-10" />}
@@ -167,37 +168,67 @@ const SpeakingPractice = () => {
 
         {transcript && (
           <Card className="mb-4">
-            <CardHeader>
-              <CardTitle className="text-sm font-display">Your Speech</CardTitle>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-sm font-display">Your Speech Heatmap</CardTitle>
+                <div className="flex gap-3 text-[10px] font-bold uppercase tracking-wider">
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500/20 border border-green-500" /> Good</span>
+                  <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500/20 border border-red-500" /> Poor</span>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <p className="text-sm leading-relaxed">{transcript}</p>
-              <p className="text-xs text-muted-foreground mt-2">Words spoken: {transcript.split(/\s+/).length}</p>
+              <div className="flex flex-wrap gap-x-1 gap-y-2">
+                {feedbackData ? (
+                  feedbackData.words.map((w, i) => (
+                    <span
+                      key={i}
+                      className={`px-1.5 py-0.5 rounded-md text-sm font-medium transition-colors ${w.accuracy === "good"
+                        ? "bg-green-500/10 text-green-700 border border-green-200"
+                        : "bg-red-500/10 text-red-700 border border-red-200"
+                        }`}
+                    >
+                      {w.word}
+                    </span>
+                  ))
+                ) : (
+                  <p className="text-sm leading-relaxed text-muted-foreground italic">Analyzing speech patterns...</p>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-3 font-semibold uppercase tracking-widest flex items-center gap-1">
+                <Info className="w-3 h-3" /> Words spoken: {transcript.split(/\s+/).length}
+              </p>
             </CardContent>
           </Card>
         )}
 
-        {showFeedback && transcript && (
-          <Card className="mb-4 border-accent/30">
+        {showFeedback && (
+          <Card className="mb-4 border-accent/30 overflow-hidden">
+            <div className="bg-accent/5 px-6 py-4 border-b border-accent/10 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-accent" />
+              <span className="font-bold text-sm font-display">AI Coach Insights</span>
+            </div>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="w-5 h-5 text-accent" />
-                <span className="font-semibold text-sm font-display">AI Feedback</span>
-              </div>
               {feedbackLoading ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm text-muted-foreground">Analyzing your speech...</span>
+                <div className="flex items-center gap-2 py-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                  <span className="text-sm text-muted-foreground italic">Generating personalized feedback...</span>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiFeedback}</p>
+                <div className="space-y-4">
+                  <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                    {feedbackData?.feedback || "Feedback unavailable."}
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
         )}
 
         {showFeedback && !feedbackLoading && (
-          <Button onClick={nextPrompt} className="gradient-button w-full">Next Prompt</Button>
+          <Button onClick={nextPrompt} className="gradient-button w-full shadow-lg h-12 text-base font-bold">
+            Continue to Next Exercise
+          </Button>
         )}
       </div>
     </AppLayout>

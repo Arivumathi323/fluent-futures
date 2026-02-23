@@ -212,27 +212,122 @@ Student's writing: "${text}"`;
     }
 }
 
+export interface WordFeedback {
+    word: string;
+    accuracy: "good" | "poor";
+}
+
+export interface SpeakingFeedback {
+    feedback: string;
+    words: WordFeedback[];
+}
+
 export async function getSpeakingFeedback(
     transcript: string,
     prompt: string
-): Promise<string> {
+): Promise<SpeakingFeedback> {
     const feedbackPrompt = `You are an English speaking coach. A student was asked to speak about: "${prompt}"
 
 Their transcribed speech was: "${transcript}"
 
-Provide brief, constructive feedback on:
-1. Relevance to the prompt
-2. Grammar and sentence structure
-3. Vocabulary range
-4. Suggestions for improvement
-
-Keep feedback concise (3-5 sentences). Be encouraging.`;
+Analyze their pronunciation word by word.
+Return ONLY a JSON object with this structure:
+{
+  "feedback": "Concise feedback paragraph (3-5 sentences) focusing on grammar, relevance and tips.",
+  "words": [
+    { "word": "word1", "accuracy": "good" },
+    { "word": "word2", "accuracy": "poor" }
+  ]
+}
+Labels for accuracy: "good" (clear pronunciation), "poor" (needs improvement). 
+Do not include any text outside the JSON object.`;
 
     try {
         const result = await model.generateContent(feedbackPrompt);
-        return result.response.text();
+        const text = result.response.text();
+        const cleaned = cleanJsonResponse(text);
+        return JSON.parse(cleaned);
     } catch (error) {
         console.warn("Gemini unavailable for speaking feedback:", error);
-        return "Nice attempt! You addressed the topic and communicated your ideas. To improve, try using more varied vocabulary and longer sentences. Practice speaking regularly to build confidence and fluency. Keep up the great work!";
+        return {
+            feedback: "Nice attempt! You addressed the topic. Practice speaking regularly to build confidence.",
+            words: transcript.split(/\s+/).map(w => ({ word: w, accuracy: "good" }))
+        };
+    }
+}
+
+// ---------- Weakness Analysis (Engine) ----------
+
+export async function getWeaknessAnalysis(mistakes: string[]): Promise<string> {
+    if (mistakes.length === 0) {
+        return "You haven't made any recurring mistakes yet! Keep practicing to give me more data to analyze.";
+    }
+
+    const analysisPrompt = `You are a linguistic expert and English teacher. 
+A student has made the following recorded mistakes/patterns in their exercises:
+${mistakes.map((m, i) => `${i + 1}. ${m}`).join("\n")}
+
+Identify the core pedagogical patterns in these mistakes (e.g., "Subject-verb agreement," "Preposition usage," "Tense consistency"). 
+Provide:
+1. A summary of the main weakness.
+2. A simple rule to help them remember the correct form.
+3. Two encouraging examples of the correct usage.
+
+Keep the tone supportive and professional. Maximum 150 words.`;
+
+    try {
+        const result = await model.generateContent(analysisPrompt);
+        return result.response.text();
+    } catch (error) {
+        console.warn("Gemini unavailable for weakness analysis:", error);
+        return "We've noticed you're working hard on your grammar and pronunciation. Focus on consistent practice and reviewing lesson materials. You're doing great!";
+    }
+}
+
+// ---------- Chat Sessions (Scenario Based Learning) ----------
+
+export function startScenarioChat(scenario: string) {
+    const systemPrompt = `You are an English teacher and interlocutor. We are practicing a real-life scenario: "${scenario}".
+Your goal is to sustain a realistic conversation. 
+1. Keep your responses concise (1-3 sentences) to encourage the student to speak more.
+2. If the student makes a glaring grammar mistake, gently point it out at the end of your response, but keep the conversation flow.
+3. Use natural, conversational English appropriate for a ${scenario} setting.
+4. Start the conversation yourself based on the scenario.`;
+
+    return model.startChat({
+        history: [
+            {
+                role: "user",
+                parts: [{ text: systemPrompt }],
+            },
+            {
+                role: "model",
+                parts: [{ text: "Understood. I am ready to start the simulation. How should we begin?" }],
+            },
+        ],
+    });
+}
+
+// ---------- Monthly Fluency Analysis ----------
+
+export async function getMonthlyFluencyAnalysis(stats: any): Promise<string> {
+    const analysisPrompt = `You are a career English coach. Analyze the student's monthly performance:
+Modules completed: ${JSON.stringify(stats.moduleStats)}
+Average Score: ${stats.avgScore}%
+Total Exercises: ${stats.totalExercises}
+
+Provide a narrative summary (3-4 sentences) that:
+1. Highlights their biggest achievement this month.
+2. Identifies a key area for next month's focus.
+3. Provides an encouraging closing statement about their fluency journey.
+
+Keep it professional, motivational, and concise.`;
+
+    try {
+        const result = await model.generateContent(analysisPrompt);
+        return result.response.text();
+    } catch (error) {
+        console.warn("Gemini unavailable for monthly analysis:", error);
+        return "You've shown great dedication to your English studies this month! Your consistent practice across all modules is helping you build a strong foundation. Keep up the momentum!";
     }
 }

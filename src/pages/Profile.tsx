@@ -210,9 +210,9 @@ const Profile = () => {
                     <div className="mt-auto w-full pt-6 flex flex-col items-center">
                       <div className="scale-[0.8] grayscale opacity-70 mb-1">
                         <Barcode
-                          value={user?.uid.slice(0, 12).toUpperCase() || "ENG-STUDENT"}
+                          value={user?.uid || "ENG-STUDENT"}
                           height={40}
-                          width={1.5}
+                          width={1.0}
                           fontSize={10}
                           background="transparent"
                         />

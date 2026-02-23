@@ -18,6 +18,9 @@ import SpeakingPractice from "./pages/practice/SpeakingPractice";
 import QuizChallenge from "./pages/practice/QuizChallenge";
 import MediaPractice from "./pages/practice/MediaPractice";
 import MediaSessionPlayer from "./pages/practice/MediaSessionPlayer";
+import ScenarioLearning from "./pages/practice/ScenarioLearning";
+import WeaknessAnalysis from "./pages/practice/WeaknessAnalysis";
+import MonthlyReport from "./pages/MonthlyReport";
 import Certification from "./pages/Certification";
 import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
@@ -53,6 +56,9 @@ const App = () => (
             <Route path="/practice/quiz" element={<ProtectedRoute><QuizChallenge /></ProtectedRoute>} />
             <Route path="/practice/media" element={<ProtectedRoute><MediaPractice /></ProtectedRoute>} />
             <Route path="/practice/media/:sessionId" element={<ProtectedRoute><MediaSessionPlayer /></ProtectedRoute>} />
+            <Route path="/practice/scenario" element={<ProtectedRoute><ScenarioLearning /></ProtectedRoute>} />
+            <Route path="/practice/weakness" element={<ProtectedRoute><WeaknessAnalysis /></ProtectedRoute>} />
+            <Route path="/monthly-report" element={<ProtectedRoute><MonthlyReport /></ProtectedRoute>} />
             <Route path="/certification" element={<ProtectedRoute><Certification /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
