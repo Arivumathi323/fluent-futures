@@ -94,8 +94,12 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     to="/profile"
                     className="flex items-center gap-4 px-6 py-5 border-b border-border hover:bg-secondary/50 transition-colors"
                 >
-                    <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg shadow-sm">
-                        {userInitial}
+                    <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg shadow-sm overflow-hidden border border-primary/20">
+                        {profile?.photoURL ? (
+                            <img src={profile.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            userInitial
+                        )}
                     </div>
                     <div>
                         <p className="text-sm font-bold uppercase tracking-wide leading-tight">{profile?.name || "User"}</p>

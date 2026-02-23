@@ -206,6 +206,60 @@ export async function updateUserProfile(
     await updateDoc(userRef, data);
 }
 
+export async function updateProfilePhoto(userId: string, file: File) {
+    const fileName = `profile_photos/${userId}_${Date.now()}`;
+    const photoURL = await uploadFile(file, fileName);
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, { photoURL });
+    return photoURL;
+}
+
+export async function getAggregateAnalytics() {
+    const students = (await getAllUsers()).filter((u: any) => !u.isAdmin);
+    const moduleStats: Record<string, { total: number; success: number }> = {};
+    let totalScore = 0;
+    let totalQuestions = 0;
+    let totalExercises = 0;
+
+    for (const student of students) {
+        const exercisesRef = collection(db, "users", student.uid, "exercises");
+        const snap = await getDocs(exercisesRef);
+
+        snap.forEach(d => {
+            const data = d.data();
+            const module = data.module || "unknown";
+            const score = data.score || 0;
+            const total = data.totalQuestions || 0;
+
+            if (!moduleStats[module]) moduleStats[module] = { total: 0, success: 0 };
+            moduleStats[module].total++;
+            if (total > 0 && (score / total) >= 0.7) {
+                moduleStats[module].success++;
+            }
+
+            totalScore += score;
+            totalQuestions += total;
+            totalExercises++;
+        });
+    }
+
+    const avgScore = totalQuestions > 0 ? Math.round((totalScore / totalQuestions) * 100) : 0;
+
+    return {
+        totalStudents: students.length,
+        totalExercises,
+        avgScore,
+        moduleStats: Object.entries(moduleStats).map(([name, stats]) => ({
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            total: stats.total,
+            success: stats.success,
+            failure: stats.total - stats.success,
+            successRate: stats.total > 0 ? Math.round((stats.success / stats.total) * 100) : 0
+        }))
+    };
+}
+
+
 export async function getUserExerciseStats(userId: string) {
     const exercises = await getUserProgress(userId);
     const totalExercises = exercises.length;

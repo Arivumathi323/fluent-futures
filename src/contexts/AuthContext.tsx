@@ -24,6 +24,7 @@ export interface UserProfile {
     xp: number;
     streak: number;
     badges: string[];
+    photoURL?: string;
     lastActiveDate: Date | null;
     createdAt: Date | null;
 }
@@ -91,6 +92,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     xp: data.xp || 0,
                     streak: data.streak || 0,
                     badges: data.badges || [],
+                    photoURL: data.photoURL || "",
                     lastActiveDate: data.lastActiveDate?.toDate() || null,
                     createdAt: data.createdAt?.toDate() || null,
                 };
@@ -120,6 +122,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             xp: 0,
             streak: 0,
             badges: [],
+            photoURL: "",
             lastActiveDate: serverTimestamp(),
             createdAt: serverTimestamp(),
         };
@@ -180,6 +183,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 xp: 0,
                 streak: 0,
                 badges: [],
+                photoURL: "",
                 lastActiveDate: serverTimestamp(),
                 createdAt: serverTimestamp(),
             };

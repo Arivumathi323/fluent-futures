@@ -5,11 +5,11 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { getUserProgress, getUserExerciseStats } from "@/lib/progressService";
+import { getUserProgress, getUserExerciseStats, updateProfilePhoto } from "@/lib/progressService";
 import { updateUserProfile } from "@/lib/progressService";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Pen, Save } from "lucide-react";
+import { Pen, Save, Camera, Loader2 } from "lucide-react";
 
 const Profile = () => {
   const { user, profile, refreshProfile } = useAuth();
@@ -19,6 +19,7 @@ const Profile = () => {
   const [age, setAge] = useState(String(profile?.age || ""));
   const [institution, setInstitution] = useState(profile?.institution || "");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [stats, setStats] = useState({ totalExercises: 0, avgScore: 0, moduleBreakdown: {} as Record<string, number> });
   const [exercises, setExercises] = useState<any[]>([]);
 
@@ -54,6 +55,22 @@ const Profile = () => {
     }
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploading(true);
+    try {
+      await updateProfilePhoto(user.uid, file);
+      await refreshProfile();
+      toast({ title: "Photo updated", description: "Your profile photo has been updated." });
+    } catch {
+      toast({ title: "Error", description: "Failed to upload photo", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const chartData = Object.entries(stats.moduleBreakdown).map(([module, count]) => ({
     module: module.charAt(0).toUpperCase() + module.slice(1),
     exercises: count,
@@ -69,8 +86,27 @@ const Profile = () => {
         <div className="stat-card mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold">
-                {(profile?.name?.charAt(0) || "U").toUpperCase()}
+              <div className="relative group cursor-pointer" onClick={() => document.getElementById("photo-input")?.click()}>
+                <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold overflow-hidden border-2 border-primary/20">
+                  {uploading ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : profile?.photoURL ? (
+                    <img src={profile.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    (profile?.name?.charAt(0) || "U").toUpperCase()
+                  )}
+                </div>
+                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="w-6 h-6 text-white" />
+                </div>
+                <input
+                  id="photo-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                  disabled={uploading}
+                />
               </div>
               <div>
                 {editing ? (
