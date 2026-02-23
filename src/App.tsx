@@ -26,6 +26,7 @@ import Resources from "./pages/Resources";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminSignup from "./pages/admin/AdminSignup";
+import PublicIDCard from "./pages/PublicIDCard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +63,9 @@ const App = () => (
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/signup" element={<AdminSignup />} />
             <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+
+            {/* Public ID Card */}
+            <Route path="/id-card/:uid" element={<PublicIDCard />} />
 
             {/* 404 */}
             <Route path="*" element={<NotFound />} />

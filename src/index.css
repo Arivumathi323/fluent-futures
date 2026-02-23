@@ -165,4 +165,17 @@
   .bottom-nav {
     @apply fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around items-center py-2 z-50;
   }
+
+  /* ID Card Flip Animations */
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
 }

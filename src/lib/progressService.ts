@@ -262,17 +262,59 @@ export async function getAggregateAnalytics() {
 
 export async function getUserExerciseStats(userId: string) {
     const exercises = await getUserProgress(userId);
+    const moduleStats: Record<string, { total: number; success: number }> = {};
+    let totalScore = 0;
+    let totalQuestions = 0;
     const totalExercises = exercises.length;
-    const totalScore = exercises.reduce((sum: number, e: any) => sum + (e.score || 0), 0);
-    const totalQuestions = exercises.reduce((sum: number, e: any) => sum + (e.totalQuestions || 0), 0);
-    const avgScore = totalQuestions > 0 ? Math.round((totalScore / totalQuestions) * 100) : 0;
 
-    const moduleBreakdown: Record<string, number> = {};
     exercises.forEach((e: any) => {
-        moduleBreakdown[e.module] = (moduleBreakdown[e.module] || 0) + 1;
+        const mod = e.module || "unknown";
+        const score = e.score || 0;
+        const total = e.totalQuestions || 0;
+
+        if (!moduleStats[mod]) moduleStats[mod] = { total: 0, success: 0 };
+        moduleStats[mod].total++;
+        if (total > 0 && (score / total) >= 0.7) {
+            moduleStats[mod].success++;
+        }
+
+        totalScore += score;
+        totalQuestions += total;
     });
 
-    return { totalExercises, avgScore, moduleBreakdown };
+    const avgScore = totalQuestions > 0 ? Math.round((totalScore / totalQuestions) * 100) : 0;
+
+    return {
+        totalExercises,
+        avgScore,
+        moduleBreakdown: moduleStats, // Keep for backward compatibility if needed
+        moduleStats: Object.entries(moduleStats).map(([name, stats]) => ({
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            total: stats.total,
+            success: stats.success,
+            failure: stats.total - stats.success,
+            successRate: stats.total > 0 ? Math.round((stats.success / stats.total) * 100) : 0
+        }))
+    };
+}
+
+export async function getPublicProfile(userId: string) {
+    const docRef = doc(db, "users", userId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        return {
+            uid: userId,
+            name: data.name || "Unknown",
+            level: data.level || "beginner",
+            photoURL: data.photoURL || "",
+            xp: data.xp || 0,
+            streak: data.streak || 0,
+            badges: data.badges || [],
+            institution: data.institution || "EngliLearn Academy"
+        };
+    }
+    return null;
 }
 
 // ---------- Media Sessions (Audio/Video Practice) ----------
