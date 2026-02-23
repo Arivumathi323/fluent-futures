@@ -58,7 +58,7 @@ const MyReviews = () => {
                                     <div className="flex justify-between items-start">
                                         <div className="space-y-1">
                                             <div className="flex items-center gap-2">
-                                                <Badge variant={(r.type === 'writing' ? 'secondary' : 'outline') as any} className="text-[10px] uppercase font-black tracking-widest">
+                                                <Badge variant={r.type === 'writing' ? 'secondary' : 'outline'} className="text-[10px] uppercase font-black tracking-widest">
                                                     {r.type}
                                                 </Badge>
                                                 <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">

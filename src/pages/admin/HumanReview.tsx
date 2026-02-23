@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPendingReviews, submitReviewFeedback } from "@/lib/progressService";
+import { getPendingReviews, getReviewedReviews, submitReviewFeedback } from "@/lib/progressService";
 import { useToast } from "@/hooks/use-toast";
 
 const HumanReview = () => {
@@ -17,11 +17,12 @@ const HumanReview = () => {
     const [submittingId, setSubmittingId] = useState<string | null>(null);
     const [feedback, setFeedback] = useState<Record<string, string>>({});
     const [search, setSearch] = useState("");
+    const [activeTab, setActiveTab] = useState<"pending" | "reviewed">("pending");
 
     const loadRequests = async () => {
         setLoading(true);
         try {
-            const data = await getPendingReviews();
+            const data = activeTab === "pending" ? await getPendingReviews() : await getReviewedReviews();
             setRequests(data);
         } catch {
             toast({ title: "Error", description: "Failed to load review requests", variant: "destructive" });
@@ -32,7 +33,7 @@ const HumanReview = () => {
 
     useEffect(() => {
         loadRequests();
-    }, []);
+    }, [activeTab]);
 
     const handleSubmitFeedback = async (id: string) => {
         const text = feedback[id];
@@ -62,13 +63,26 @@ const HumanReview = () => {
                 <div>
                     <h3 className="text-xl font-black font-display tracking-tight flex items-center gap-2">
                         <MessageSquare className="w-5 h-5 text-primary" />
-                        Student Review Queue ({requests.length})
+                        Student Review Portal
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-1">Provide expert feedback on student writing and speaking work</p>
+                    <div className="flex gap-4 mt-4">
+                        <button
+                            onClick={() => setActiveTab("pending")}
+                            className={`pb-2 text-sm font-bold transition-all border-b-2 ${activeTab === 'pending' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                        >
+                            Pending ({activeTab === 'pending' ? requests.length : '...'})
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("reviewed")}
+                            className={`pb-2 text-sm font-bold transition-all border-b-2 ${activeTab === 'reviewed' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+                        >
+                            History ({activeTab === 'reviewed' ? requests.length : '...'})
+                        </button>
+                    </div>
                 </div>
                 <div className="relative w-full md:w-80">
                     <Input
-                        placeholder="Search by student, type or prompt..."
+                        placeholder="Search records..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="h-11 text-sm pl-11 rounded-xl shadow-inner bg-background/50"
@@ -80,15 +94,15 @@ const HumanReview = () => {
             {loading ? (
                 <div className="text-center py-20">
                     <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-4" />
-                    <p className="text-muted-foreground font-medium">Scanning for pending submissions...</p>
+                    <p className="text-muted-foreground font-medium">Scanning records...</p>
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="text-center py-20 bg-muted/20 border-2 border-dashed rounded-3xl">
                     <CheckCircle2 className="w-16 h-16 text-feature-green/20 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold font-display">Inbox Zero!</h3>
-                    <p className="text-muted-foreground max-w-xs mx-auto text-sm">No pending student reviews at the moment. All learners are currently on track.</p>
+                    <h3 className="text-xl font-bold font-display">No records found</h3>
+                    <p className="text-muted-foreground max-w-xs mx-auto text-sm">Nothing to show in this category.</p>
                     <Button onClick={loadRequests} variant="ghost" className="mt-6 text-xs uppercase font-black tracking-widest gap-2">
-                        <Loader2 className="w-4 h-4" /> Refresh Queue
+                        <Loader2 className="w-4 h-4" /> Refresh
                     </Button>
                 </div>
             ) : (
@@ -112,7 +126,7 @@ const HumanReview = () => {
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between py-2 border-y border-border/30">
                                             <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Type</span>
-                                            <Badge variant={(r.type === 'writing' ? 'secondary' : 'outline') as any} className="text-[9px] uppercase font-black">
+                                            <Badge variant={r.type === 'writing' ? 'secondary' : 'outline'} className="text-[9px] uppercase font-black">
                                                 {r.type}
                                             </Badge>
                                         </div>
@@ -144,24 +158,37 @@ const HumanReview = () => {
 
                                     <div className="space-y-3">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                            <Filter className="w-4 h-4" /> Teacher Assessment
+                                            <Filter className="w-4 h-4" /> {activeTab === 'pending' ? 'Teacher Assessment' : 'Provided Feedback'}
                                         </p>
-                                        <Textarea
-                                            value={feedback[r.id] || ""}
-                                            onChange={(e) => setFeedback({ ...feedback, [r.id]: e.target.value })}
-                                            placeholder="Write your constructive feedback, corrections, and encouragement here..."
-                                            className="min-h-[120px] bg-background/40 border-primary/20 focus:border-primary rounded-2xl text-sm"
-                                        />
-                                        <div className="flex justify-end gap-3 pt-2">
-                                            <Button
-                                                onClick={() => handleSubmitFeedback(r.id)}
-                                                className="gradient-button h-11 px-8 rounded-xl font-bold text-sm shadow-lg hover:shadow-primary/20 transition-all shrink-0"
-                                                disabled={!feedback[r.id]?.trim() || submittingId === r.id}
-                                            >
-                                                {submittingId === r.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-                                                Send Review
-                                            </Button>
-                                        </div>
+                                        {activeTab === 'pending' ? (
+                                            <>
+                                                <Textarea
+                                                    value={feedback[r.id] || ""}
+                                                    onChange={(e) => setFeedback({ ...feedback, [r.id]: e.target.value })}
+                                                    placeholder="Write your constructive feedback, corrections, and encouragement here..."
+                                                    className="min-h-[120px] bg-background/40 border-primary/20 focus:border-primary rounded-2xl text-sm"
+                                                />
+                                                <div className="flex justify-end gap-3 pt-2">
+                                                    <Button
+                                                        onClick={() => handleSubmitFeedback(r.id)}
+                                                        className="gradient-button h-11 px-8 rounded-xl font-bold text-sm shadow-lg hover:shadow-primary/20 transition-all shrink-0"
+                                                        disabled={!feedback[r.id]?.trim() || submittingId === r.id}
+                                                    >
+                                                        {submittingId === r.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                                                        Send Review
+                                                    </Button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="p-5 rounded-2xl bg-primary/5 border border-primary/20">
+                                                <p className="text-sm italic text-foreground/80 leading-relaxed">
+                                                    "{r.feedback}"
+                                                </p>
+                                                <p className="text-[10px] font-bold text-primary mt-4 uppercase tracking-widest">
+                                                    Reviewed by {r.reviewedBy} on {r.reviewedAt?.toDate().toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

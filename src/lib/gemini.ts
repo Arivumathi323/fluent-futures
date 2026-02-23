@@ -220,6 +220,10 @@ export interface WordFeedback {
 export interface SpeakingFeedback {
     feedback: string;
     words: WordFeedback[];
+    scores: {
+        pronunciation: number; // 1-5
+        fluency: number; // 1-5
+    };
 }
 
 export async function getSpeakingFeedback(
@@ -230,16 +234,20 @@ export async function getSpeakingFeedback(
 
 Their transcribed speech was: "${transcript}"
 
-Analyze their pronunciation word by word.
+Analyze their speech for pronunciation, fluency, and correctness.
 Return ONLY a JSON object with this structure:
 {
-  "feedback": "Concise feedback paragraph (3-5 sentences) focusing on grammar, relevance and tips.",
+  "feedback": "Concise feedback paragraph (2-3 sentences).",
+  "scores": {
+    "pronunciation": 4, 
+    "fluency": 3
+  },
   "words": [
     { "word": "word1", "accuracy": "good" },
     { "word": "word2", "accuracy": "poor" }
   ]
 }
-Labels for accuracy: "good" (clear pronunciation), "poor" (needs improvement). 
+Scores must be between 1 and 5. Labels for accuracy: "good" (clear), "poor" (needs work).
 Do not include any text outside the JSON object.`;
 
     try {
@@ -251,7 +259,8 @@ Do not include any text outside the JSON object.`;
         console.warn("Gemini unavailable for speaking feedback:", error);
         return {
             feedback: "Nice attempt! You addressed the topic. Practice speaking regularly to build confidence.",
-            words: transcript.split(/\s+/).map(w => ({ word: w, accuracy: "good" }))
+            words: transcript.split(/\s+/).map(w => ({ word: w, accuracy: "good" })),
+            scores: { pronunciation: 4, fluency: 4 }
         };
     }
 }

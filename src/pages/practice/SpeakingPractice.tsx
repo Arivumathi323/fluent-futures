@@ -201,7 +201,35 @@ const SpeakingPractice = () => {
                   <p className="text-sm leading-relaxed text-muted-foreground italic">Analyzing speech patterns...</p>
                 )}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-3 font-semibold uppercase tracking-widest flex items-center gap-1">
+
+              {feedbackData?.scores && (
+                <div className="mt-6 pt-5 border-t border-border/50 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Pronunciation</span>
+                    <div className="flex gap-0.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Sparkles
+                          key={s}
+                          className={`w-3.5 h-3.5 ${s <= feedbackData.scores.pronunciation ? 'text-feature-pink fill-feature-pink' : 'text-muted/30'}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fluency</span>
+                    <div className="flex gap-0.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Sparkles
+                          key={s}
+                          className={`w-3.5 h-3.5 ${s <= feedbackData.scores.fluency ? 'text-primary fill-primary' : 'text-muted/30'}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-[10px] text-muted-foreground mt-4 font-semibold uppercase tracking-widest flex items-center gap-1">
                 <Info className="w-3 h-3" /> Words spoken: {transcript.split(/\s+/).length}
               </p>
             </CardContent>

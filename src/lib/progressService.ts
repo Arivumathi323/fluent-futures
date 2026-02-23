@@ -84,6 +84,17 @@ export async function getPendingReviews() {
         .sort((a, b) => (a.submittedAt?.toMillis() || 0) - (b.submittedAt?.toMillis() || 0));
 }
 
+export async function getReviewedReviews() {
+    const q = query(
+        collection(db, "reviewRequests"),
+        where("status", "==", "reviewed")
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as any))
+        .sort((a, b) => (b.reviewedAt?.toMillis() || 0) - (a.reviewedAt?.toMillis() || 0));
+}
+
 export async function submitReviewFeedback(requestId: string, feedback: string, adminName: string) {
     const docRef = doc(db, "reviewRequests", requestId);
     await updateDoc(docRef, {
