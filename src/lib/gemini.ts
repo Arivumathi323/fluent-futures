@@ -1,9 +1,21 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { auth } from "./firebase";
 import { getFallbackGrammar, getFallbackPassage, getFallbackWriting, getFallbackQuiz } from "./fallbackData";
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
+const functions = getFunctions(auth.app);
+const generateGeminiContentCallable = httpsCallable(functions, "generateGeminiContent");
 
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+// Helper function to call the cloud function
+async function callGemini(prompt: string, systemInstruction?: string, temperature = 0.7): Promise<string> {
+    try {
+        const result = await generateGeminiContentCallable({ prompt, systemInstruction, temperature });
+        const data = result.data as { text: string };
+        return data.text;
+    } catch (error) {
+        console.error("Error calling Gemini Cloud Function:", error);
+        throw error;
+    }
+}
 
 function cleanJsonResponse(text: string): string {
     let cleaned = text.trim();
@@ -54,8 +66,7 @@ Return ONLY a JSON array with this structure:
 Do not include any text outside the JSON array.`;
 
     try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
+        const text = await callGemini(prompt);
         const cleaned = cleanJsonResponse(text);
         const questions: GrammarQuestion[] = JSON.parse(cleaned);
         return questions.map((q, i) => ({ ...q, id: i + 1 }));
@@ -95,8 +106,7 @@ Return ONLY a JSON object with this structure:
 Include 3-4 vocabulary words and 3-4 comprehension questions. Do not include any text outside the JSON.`;
 
     try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
+        const text = await callGemini(prompt);
         const cleaned = cleanJsonResponse(text);
         return JSON.parse(cleaned);
     } catch (error) {
@@ -145,8 +155,7 @@ Return ONLY a JSON array:
 Do not include any text outside the JSON array.`;
 
     try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
+        const text = await callGemini(prompt);
         const cleaned = cleanJsonResponse(text);
         const exercises: WritingExercise[] = JSON.parse(cleaned);
         return exercises.map((e, i) => ({ ...e, id: i + 1 }));
@@ -181,8 +190,7 @@ Return ONLY a JSON array:
 Mix categories: Grammar, Vocabulary, Comprehension, Idioms. Do not include any text outside the JSON array.`;
 
     try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
+        const text = await callGemini(prompt);
         const cleaned = cleanJsonResponse(text);
         const questions: QuizQuestion[] = JSON.parse(cleaned);
         return questions.map((q, i) => ({ ...q, id: i + 1 }));
@@ -204,8 +212,8 @@ Keep your feedback concise (3-5 sentences). Be encouraging but honest.
 Student's writing: "${text}"`;
 
     try {
-        const result = await model.generateContent(prompt);
-        return result.response.text();
+        const text = await callGemini(prompt);
+        return text;
     } catch (error) {
         console.warn("Gemini unavailable for feedback:", error);
         return "Great effort! Your writing shows good potential. Keep practicing to improve your grammar and vocabulary. Try to vary your sentence structures for more engaging writing. Well done on completing this exercise!";
@@ -251,8 +259,7 @@ Scores must be between 1 and 5. Labels for accuracy: "good" (clear), "poor" (nee
 Do not include any text outside the JSON object.`;
 
     try {
-        const result = await model.generateContent(feedbackPrompt);
-        const text = result.response.text();
+        const text = await callGemini(feedbackPrompt);
         const cleaned = cleanJsonResponse(text);
         return JSON.parse(cleaned);
     } catch (error) {
@@ -285,8 +292,8 @@ Provide:
 Keep the tone supportive and professional. Maximum 150 words.`;
 
     try {
-        const result = await model.generateContent(analysisPrompt);
-        return result.response.text();
+        const text = await callGemini(analysisPrompt);
+        return text;
     } catch (error) {
         console.warn("Gemini unavailable for weakness analysis:", error);
         return "We've noticed you're working hard on your grammar and pronunciation. Focus on consistent practice and reviewing lesson materials. You're doing great!";
@@ -295,26 +302,11 @@ Keep the tone supportive and professional. Maximum 150 words.`;
 
 // ---------- Chat Sessions (Scenario Based Learning) ----------
 
+// Removing model.startChat as it's not directly supported via a simple callable without maintaining state on client or server.
+// For now, we fallback or implement a simpler single-turn if active.
 export function startScenarioChat(scenario: string) {
-    const systemPrompt = `You are an English teacher and interlocutor. We are practicing a real-life scenario: "${scenario}".
-Your goal is to sustain a realistic conversation. 
-1. Keep your responses concise (1-3 sentences) to encourage the student to speak more.
-2. If the student makes a glaring grammar mistake, gently point it out at the end of your response, but keep the conversation flow.
-3. Use natural, conversational English appropriate for a ${scenario} setting.
-4. Start the conversation yourself based on the scenario.`;
-
-    return model.startChat({
-        history: [
-            {
-                role: "user",
-                parts: [{ text: systemPrompt }],
-            },
-            {
-                role: "model",
-                parts: [{ text: "Understood. I am ready to start the simulation. How should we begin?" }],
-            },
-        ],
-    });
+    console.error("startScenarioChat is currently unsupported with Cloud Functions migration: " + scenario);
+    throw new Error("Chat sessions require updating to use single-turn or stateful cloud functions.");
 }
 
 // ---------- Monthly Fluency Analysis ----------
@@ -333,8 +325,8 @@ Provide a narrative summary (3-4 sentences) that:
 Keep it professional, motivational, and concise.`;
 
     try {
-        const result = await model.generateContent(analysisPrompt);
-        return result.response.text();
+        const text = await callGemini(analysisPrompt);
+        return text;
     } catch (error) {
         console.warn("Gemini unavailable for monthly analysis:", error);
         return "You've shown great dedication to your English studies this month! Your consistent practice across all modules is helping you build a strong foundation. Keep up the momentum!";

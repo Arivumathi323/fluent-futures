@@ -1,12 +1,100 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import fetch from "node-fetch";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 admin.initializeApp();
 const db = admin.firestore();
 
 // ============================================
-// CONFIGURATION — Set these in Firebase config:
+// AI FUNCTIONS (Gemini & ElevenLabs)
+// ============================================
+
+export const generateGeminiContent = functions.https.onCall(async (data, context) => {
+    // Optional: Add authentication check
+    // if (!context.auth) {
+    //     throw new functions.https.HttpsError('unauthenticated', 'User must be logged in to use AI features.');
+    // }
+
+    const { prompt, systemInstruction, temperature = 0.7 } = data;
+
+    if (!prompt) {
+        throw new functions.https.HttpsError('invalid-argument', 'Prompt is required.');
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY || functions.config().gemini?.key;
+    if (!apiKey) {
+        throw new functions.https.HttpsError('internal', 'Gemini API key not configured.');
+    }
+
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            systemInstruction: systemInstruction,
+        });
+
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: temperature,
+            }
+        });
+
+        return { text: result.response.text() };
+    } catch (error: any) {
+        console.error("Gemini Generation Error:", error);
+        throw new functions.https.HttpsError('internal', error.message || 'Failed to generate content');
+    }
+});
+
+export const generateElevenLabsSpeech = functions.https.onCall(async (data, context) => {
+    const { text, voiceId = "21m00Tcm4TlvDq8ikWAM" } = data; // Default to 'Rachel'
+
+    if (!text) {
+        throw new functions.https.HttpsError('invalid-argument', 'Text is required.');
+    }
+
+    const apiKey = process.env.ELEVENLABS_API_KEY || functions.config().elevenlabs?.key;
+    if (!apiKey) {
+        throw new functions.https.HttpsError('internal', 'ElevenLabs API key not configured.');
+    }
+
+    try {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+            method: "POST",
+            headers: {
+                "Accept": "audio/mpeg",
+                "Content-Type": "application/json",
+                "xi-api-key": apiKey
+            },
+            body: JSON.stringify({
+                text: text,
+                model_id: "eleven_monolingual_v1",
+                voice_settings: {
+                    stability: 0.5,
+                    similarity_boost: 0.5
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
+        }
+
+        const audioBuffer = await response.arrayBuffer();
+        // Return as base64 string
+        const base64Audio = Buffer.from(audioBuffer).toString('base64');
+        return { audioBase64: base64Audio };
+    } catch (error: any) {
+        console.error("ElevenLabs Error:", error);
+        throw new functions.https.HttpsError('internal', error.message || 'Failed to generate speech');
+    }
+});
+
+// ============================================
+// CONFIGURATION — Telegram
 //   firebase functions:config:set telegram.bot_token="YOUR_BOT_TOKEN"
 // ============================================
 

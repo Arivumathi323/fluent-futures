@@ -33,10 +33,13 @@ import AdminSignup from "./pages/admin/AdminSignup";
 import PublicIDCard from "./pages/PublicIDCard";
 import NotFound from "./pages/NotFound";
 
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <ErrorBoundary>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -80,7 +83,10 @@ const App = () => (
           </Routes>
         </AuthProvider>
       </HashRouter>
+      <Toaster />
+      <Sonner />
     </TooltipProvider>
+    </ErrorBoundary>
   </QueryClientProvider>
 );
 

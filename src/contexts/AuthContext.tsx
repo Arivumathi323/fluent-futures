@@ -10,7 +10,7 @@ import {
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db, googleProvider, githubProvider } from "@/lib/firebase";
 
-const ADMIN_EMAIL = "arivumathi2612@gmail.com";
+const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "arivumathi2612@gmail.com").toLowerCase();
 
 export interface UserProfile {
     uid: string;
